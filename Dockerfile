@@ -4,7 +4,7 @@ ARG PYTHON_VERSION=3.13
 
 # Stage 1: train the model inside the build so the image is fully reproducible
 FROM python:${PYTHON_VERSION}-slim AS builder
-ARG MODEL_VERSION=v0.1
+ARG MODEL_VERSION=v0.2
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \

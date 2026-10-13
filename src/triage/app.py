@@ -39,12 +39,19 @@ class Prediction(BaseModel):
     prediction: float
 
 
+class RiskAssessment(BaseModel):
+    prediction: float
+    high_risk: bool
+    threshold: float
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     model_dir = Path(os.environ.get("MODEL_DIR", DEFAULT_MODEL_DIR))
     app.state.model = joblib.load(model_dir / "model.joblib")
     metrics = json.loads((model_dir / "metrics.json").read_text())
     app.state.model_version = metrics["model_version"]
+    app.state.risk = metrics.get("risk_flag")
     yield
 
 
@@ -80,6 +87,11 @@ async def unexpected_error_handler(request: Request, exc: Exception):
     )
 
 
+def _score(request: Request, patient: PatientFeatures) -> float:
+    row = np.array([[getattr(patient, name) for name in FEATURES]])
+    return float(request.app.state.model.predict(row)[0])
+
+
 @app.get("/health")
 def health(request: Request):
     return {"status": "ok", "model_version": request.app.state.model_version}
@@ -87,6 +99,23 @@ def health(request: Request):
 
 @app.post("/predict", response_model=Prediction)
 def predict(patient: PatientFeatures, request: Request):
-    row = np.array([[getattr(patient, name) for name in FEATURES]])
-    value = float(request.app.state.model.predict(row)[0])
-    return {"prediction": value}
+    return {"prediction": _score(request, patient)}
+
+
+@app.post("/predict/risk", response_model=RiskAssessment)
+def predict_risk(patient: PatientFeatures, request: Request):
+    risk = request.app.state.risk
+    if risk is None:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": "not_available",
+                "message": "This model version has no high-risk flag",
+            },
+        )
+    value = _score(request, patient)
+    return {
+        "prediction": value,
+        "high_risk": value >= risk["threshold"],
+        "threshold": risk["threshold"],
+    }

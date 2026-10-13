@@ -51,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: [v0.1]
+        version: [v0.1, v0.2]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -68,4 +68,25 @@ jobs:
         with:
           name: model-${{ matrix.version }}
           path: artifacts/
+          if-no-files-found: error
+
+  cv-comparison:
+    name: Cross-validation comparison
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run repeated cross-validation
+        run: python -m triage.evaluate --out metrics/cv_comparison.json
+      - name: Upload comparison report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cv-comparison
+          path: metrics/cv_comparison.json
           if-no-files-found: error

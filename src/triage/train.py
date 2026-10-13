@@ -19,11 +19,10 @@ from sklearn.datasets import load_diabetes
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 from sklearn.model_selection import train_test_split
 
+from triage.config import SEED, TEST_SIZE
 from triage.features import FEATURES
-from triage.models import build_model
-
-SEED = 42
-TEST_SIZE = 0.2
+from triage.models import RISK_FLAG_VERSIONS, build_model
+from triage.risk import fit_threshold, flag_metrics
 
 
 def set_seeds(seed: int = SEED) -> None:
@@ -89,6 +88,17 @@ def train(version: str, out_dir: Path) -> dict:
             "scipy": scipy.__version__,
         },
     }
+    if version in RISK_FLAG_VERSIONS:
+        cutoff, threshold = fit_threshold(build_model(version), X_train, y_train, SEED)
+        metrics["risk_flag"] = {
+            "label_definition": "true progression >= 75th percentile of training targets",
+            "label_cutoff": round(cutoff, 4),
+            "threshold": round(threshold, 4),
+            "test": {
+                "calibrated": flag_metrics(y_test, pred, cutoff, threshold),
+                "naive": flag_metrics(y_test, pred, cutoff, cutoff),
+            },
+        }
     (out_dir / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
     return metrics
 
