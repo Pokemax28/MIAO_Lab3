@@ -30,6 +30,12 @@ def test_predict_returns_float(client):
     assert math.isfinite(body["prediction"])
 
 
+def test_extra_keys_are_ignored(client):
+    response = client.post("/predict", json={**PAYLOAD, "unknown": 1})
+    assert response.status_code == 200
+    assert response.json() == client.post("/predict", json=PAYLOAD).json()
+
+
 def test_predict_is_deterministic(client):
     first = client.post("/predict", json=PAYLOAD).json()
     second = client.post("/predict", json=PAYLOAD).json()

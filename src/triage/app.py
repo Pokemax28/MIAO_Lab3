@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -14,6 +15,9 @@ from pydantic import BaseModel, Field
 from triage.features import FEATURES
 
 DEFAULT_MODEL_DIR = Path(__file__).resolve().parents[2] / "artifacts"
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("triage")
 
 Feature = Annotated[float, Field(allow_inf_nan=False)]
 
@@ -48,6 +52,7 @@ async def lifespan(app: FastAPI):
     metrics = json.loads((model_dir / "metrics.json").read_text())
     app.state.model_version = metrics["model_version"]
     app.state.risk = metrics.get("risk_flag")
+    logger.info("model %s loaded from %s", app.state.model_version, model_dir)
     yield
 
 
@@ -95,7 +100,9 @@ def health(request: Request):
 
 @app.post("/predict", response_model=Prediction)
 def predict(patient: PatientFeatures, request: Request):
-    return {"prediction": _score(request, patient)}
+    value = _score(request, patient)
+    logger.info("predict: %.2f", value)
+    return {"prediction": value}
 
 
 @app.post("/predict/risk", response_model=RiskAssessment)
@@ -110,8 +117,10 @@ def predict_risk(patient: PatientFeatures, request: Request):
             },
         )
     value = _score(request, patient)
+    high_risk = value >= risk["threshold"]
+    logger.info("predict/risk: %.2f high_risk=%s", value, high_risk)
     return {
         "prediction": value,
-        "high_risk": value >= risk["threshold"],
+        "high_risk": high_risk,
         "threshold": risk["threshold"],
     }
