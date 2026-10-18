@@ -1,12 +1,3 @@
-"""Compare model candidates with repeated cross-validation on the full dataset.
-
-A single 89-row test split is noisy, so version decisions rely on repeated 5-fold CV
-(25 folds by default). The same flag calibration as in training is applied inside every fold.
-
-Usage:
-    python -m triage.evaluate --out metrics/cv_comparison.json
-"""
-
 import argparse
 import json
 from pathlib import Path

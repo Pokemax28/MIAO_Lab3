@@ -1,9 +1,3 @@
-"""Train the progression model and save it together with its metrics.
-
-Usage:
-    python -m triage.train --version v0.1 --out artifacts
-"""
-
 import argparse
 import json
 import platform
@@ -31,7 +25,6 @@ def set_seeds(seed: int = SEED) -> None:
 
 
 def load_data():
-    """Load the scikit-learn diabetes dataset as features and progression index."""
     frame = load_diabetes(as_frame=True).frame
     X = frame.drop(columns=["target"])
     y = frame["target"]
@@ -41,8 +34,7 @@ def load_data():
 
 
 def measure_latency_ms(model, row: np.ndarray, repeats: int = 200) -> float:
-    """Average single-row prediction time in milliseconds."""
-    model.predict(row)  # warm-up
+    model.predict(row)
     start = time.perf_counter()
     for _ in range(repeats):
         model.predict(row)
@@ -50,7 +42,6 @@ def measure_latency_ms(model, row: np.ndarray, repeats: int = 200) -> float:
 
 
 def train(version: str, out_dir: Path) -> dict:
-    """Fit the model for `version`, save it, and return the metrics dictionary."""
     set_seeds()
     X, y = load_data()
     X_train, X_test, y_train, y_test = train_test_split(

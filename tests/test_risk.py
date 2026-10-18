@@ -9,7 +9,6 @@ from triage.risk import flag_metrics
 def test_flag_metrics_on_known_values():
     y_true = np.array([100, 200, 300, 400])
     pred = np.array([150, 250, 350, 120])
-    # cutoff 250 labels the last two as high risk, threshold 200 flags the 2nd and 3rd
     metrics = flag_metrics(y_true, pred, cutoff=250, threshold=200)
     assert metrics == {"precision": 0.5, "recall": 0.5, "f1": 0.5}
 

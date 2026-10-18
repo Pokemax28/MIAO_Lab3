@@ -7,7 +7,6 @@ from triage.train import train
 
 @pytest.fixture(scope="session", params=sorted(MODEL_BUILDERS))
 def trained(request, tmp_path_factory):
-    """Train every released model version once and expose (version, dir, metrics)."""
     version = request.param
     out_dir = tmp_path_factory.mktemp(f"artifacts_{version}")
     metrics = train(version, out_dir)

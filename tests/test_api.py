@@ -37,7 +37,6 @@ def test_predict_is_deterministic(client):
 
 
 def test_higher_bmi_never_lowers_the_score_much(client):
-    """Sanity check on the sign of the main driver of progression."""
     low = client.post("/predict", json={**PAYLOAD, "bmi": -0.05}).json()["prediction"]
     high = client.post("/predict", json={**PAYLOAD, "bmi": 0.10}).json()["prediction"]
     assert high > low

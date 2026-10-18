@@ -29,7 +29,6 @@ def test_training_writes_artifacts(trained):
 
 
 def test_rmse_is_reasonable(trained):
-    """The mean predictor scores about 77 on this split, a useful model must beat it clearly."""
     _, _, metrics = trained
     assert metrics["rmse"] < 65
     assert metrics["r2"] > 0.3

@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test for a running service.
-# Usage: scripts/smoke_test.sh [base_url] [expected_model_version]
 set -euo pipefail
 
 BASE_URL="${1:-http://localhost:80}"

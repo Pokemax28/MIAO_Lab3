@@ -7,7 +7,6 @@ name = "triage"
 version = "0.2.0"
 description = "Virtual diabetes clinic triage: progression score service"
 requires-python = ">=3.13"
-# Runtime and training dependencies are pinned in requirements*.txt
 dependencies = []
 
 [tool.setuptools.packages.find]

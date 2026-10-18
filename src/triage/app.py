@@ -1,5 +1,3 @@
-"""FastAPI service exposing GET /health and POST /predict."""
-
 import json
 import os
 from contextlib import asynccontextmanager
@@ -21,8 +19,6 @@ Feature = Annotated[float, Field(allow_inf_nan=False)]
 
 
 class PatientFeatures(BaseModel):
-    """The ten standardized diabetes features of one patient check-in."""
-
     age: Feature
     sex: Feature
     bmi: Feature
