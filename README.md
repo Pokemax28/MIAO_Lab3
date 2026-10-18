@@ -1,42 +1,40 @@
-# Virtual Diabetes Clinic Triage
+# Diabetes clinic triage
 
-A small ML service that predicts short-term diabetes progression and returns a continuous risk
-score. The triage dashboard calls `POST /predict` for each patient and sorts nurses' follow-up
-calls by the predicted value, highest first.
+A small API that scores how fast a patient's diabetes is likely to progress, so nurses can call the riskiest patients first. This is Lab 3 of MAIO.
 
-The data is the open scikit-learn Diabetes dataset, used as a stand-in for de-identified EHR
-features. The target is a progression index (higher means worse).
+The data is the scikit-learn diabetes dataset (442 patients, 10 features), standing in for real hospital records. The target is a progression index: higher means worse.
 
-Releases:
+There are two releases:
 
-- **v0.1**: baseline `StandardScaler` + `LinearRegression`.
-- **v0.2**: Ridge + gradient boosting average, plus a calibrated high-risk flag.
+- **v0.1**: `StandardScaler` + `LinearRegression`. The baseline.
+- **v0.2**: an average of a Ridge model and a gradient boosting model, plus a "high risk" flag with a calibrated threshold.
 
-See [CHANGELOG.md](CHANGELOG.md) for what changed and the metrics of both versions.
+The metrics for both are in [CHANGELOG.md](CHANGELOG.md). The improvement is real but small, the changelog explains how small.
 
-## Run the released image
+## Run it with Docker
 
-Replace `OWNER/REPO` with the GitHub namespace and repository name (lowercase).
+The images are public on GHCR and already contain the trained model, so there is nothing else to install.
 
 ```bash
-docker pull ghcr.io/OWNER/REPO:v0.1
-docker run -it -p 80:80 ghcr.io/OWNER/REPO:v0.1
+docker pull ghcr.io/pokemax28/miao_lab3:v0.1
+docker run -it -p 80:80 ghcr.io/pokemax28/miao_lab3:v0.1
 ```
 
 ```bash
-docker pull ghcr.io/OWNER/REPO:v0.2
-docker run -it -p 80:80 ghcr.io/OWNER/REPO:v0.2
+docker pull ghcr.io/pokemax28/miao_lab3:v0.2
+docker run -it -p 80:80 ghcr.io/pokemax28/miao_lab3:v0.2
 ```
 
-Stop one version before starting another, both use port 80. The examples below show v0.1,
-`/health` reports `"model_version": "v0.2"` for the second image.
+Both use port 80, so stop one (Ctrl+C) before starting the other. If `docker pull` asks for a login, the package is still private and needs to be set to public in the GitHub package settings.
+
+Once it runs, from another terminal:
 
 ```bash
 curl http://localhost:80/health
 ```
 
 ```json
-{"status": "ok", "model_version": "v0.1"}
+{"status": "ok", "model_version": "v0.2"}
 ```
 
 ```bash
@@ -45,38 +43,34 @@ curl -X POST http://localhost:80/predict -H "Content-Type: application/json" \
 ```
 
 ```json
-{"prediction": 235.94963722176266}
+{"prediction": 207.21623670513958}
 ```
 
-## API
+On Windows PowerShell, `curl` is not the real curl. Use this instead:
 
-### `GET /health`
+```powershell
+Invoke-RestMethod http://localhost/predict -Method Post -ContentType "application/json" -Body '{"age": 0.02, "sex": -0.044, "bmi": 0.06, "bp": -0.03, "s1": -0.02, "s2": 0.03, "s3": -0.02, "s4": 0.02, "s5": 0.02, "s6": -0.001}'
+```
 
-Returns `200` with `{"status": "ok", "model_version": "<version>"}`.
+With v0.1 the same payload gives 235.949... and `model_version` is `v0.1`.
 
-### `POST /predict`
+## Endpoints
 
-Body: JSON object with the ten features `age`, `sex`, `bmi`, `bp`, `s1`, `s2`, `s3`, `s4`,
-`s5`, `s6`, all numbers (finite). Unknown extra keys are ignored.
+**`GET /health`** returns `{"status": "ok", "model_version": "v0.2"}`.
 
-Returns `200` with `{"prediction": <float>}`.
+**`POST /predict`** takes a JSON object with the ten features (`age`, `sex`, `bmi`, `bp`, `s1` to `s6`), all finite numbers, and returns `{"prediction": <float>}`. Extra keys are ignored.
 
-### `POST /predict/risk` (v0.2 only)
-
-Same body as `/predict`. Returns `200` with the score, the high-risk flag and the calibrated
-threshold the flag uses:
+**`POST /predict/risk`** (v0.2 only) takes the same body and also says whether the patient is flagged:
 
 ```json
 {"prediction": 207.2, "high_risk": true, "threshold": 180.7}
 ```
 
-`high_risk` is `prediction >= threshold`. On v0.1 this endpoint returns `404` with
-`{"error": "not_available", ...}`. Invalid input gives the same `422` as `/predict`.
+`high_risk` is just `prediction >= threshold`. On v0.1 this route answers 404.
 
-### Error format
+### Errors
 
-Invalid input (missing field, wrong type, NaN or infinity, malformed JSON) returns HTTP `422`
-with a JSON body:
+Bad input gets HTTP 422 and a JSON body. Missing field, wrong type, NaN or infinity, and broken JSON all end up here. For example, leaving out `s6`:
 
 ```json
 {
@@ -88,29 +82,34 @@ with a JSON body:
 }
 ```
 
-- `error`: stable machine-readable code (`validation_error`).
-- `message`: short human-readable summary.
-- `details`: one entry per problem. `field` is the feature name (or `body` when the whole
-  body is not valid JSON), `issue` is the validation message, `type` is the validation error
-  type (`missing`, `float_parsing`, `finite_number`, `json_invalid`, ...).
+`details` has one entry per problem. `field` is the feature name (or `body` if the JSON itself cannot be parsed), `issue` is the message, and `type` is the validation error type (`missing`, `float_parsing`, `finite_number`, `json_invalid`). An unexpected crash returns 500 with `{"error": "internal_error", "message": "..."}`.
 
-Unexpected server errors return HTTP `500` with `{"error": "internal_error", "message": "..."}`.
+## Run it without Docker
 
-## Run locally
-
-Requires Python 3.13.
+You need Python 3.13.
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate        # Windows PowerShell: .venv\Scripts\Activate.ps1
+source .venv/bin/activate
 pip install -r requirements-dev.txt
 
-python -m triage.train --version v0.2 --out artifacts   # trains and writes artifacts/ (or v0.1)
-uvicorn triage.app:app --port 8000                      # serves on http://localhost:8000
-python -m triage.evaluate                               # repeated CV, writes metrics/cv_comparison.json
+python -m triage.train --version v0.2 --out artifacts
+uvicorn triage.app:app --port 8000
 ```
 
-Quality checks (the same ones CI runs):
+On Windows PowerShell, activate the environment with `.venv\Scripts\Activate.ps1` instead.
+
+`--version v0.1` trains the baseline instead. Training writes the model and a `metrics.json` into `artifacts/`, and the API reads them from there.
+
+To redo the cross-validation comparison from the changelog:
+
+```bash
+python -m triage.evaluate
+```
+
+It takes about 40 seconds and writes `metrics/cv_comparison.json`.
+
+Lint and tests, the same as in CI:
 
 ```bash
 ruff check .
@@ -118,35 +117,25 @@ ruff format --check .
 pytest
 ```
 
-Build and run the image yourself:
+To build the image yourself:
 
 ```bash
-docker build --build-arg MODEL_VERSION=v0.2 -t triage:v0.2 .
+docker build -t triage:v0.2 .
 docker run -it -p 80:80 triage:v0.2
-bash scripts/smoke_test.sh http://localhost:80 v0.2      # needs curl and jq
+bash scripts/smoke_test.sh http://localhost:80 v0.2
 ```
+
+The smoke test script needs `curl` and `jq`.
 
 ## Reproducibility
 
-- Seeds: `random`, `numpy` and the train/test split use seed 42 (`src/triage/train.py`).
-- Environment: every dependency is pinned in `requirements*.txt`, Docker uses `python:3.13-slim`.
-- The Docker build trains the model itself (first stage), so an image is rebuilt from source.
-- `artifacts/metrics.json` records RMSE, MAE, R2, latency, model size and library versions
-  (and the calibrated threshold for v0.2). The same code and the same pinned environment give
-  the same metrics.
-- `metrics/cv_comparison.json` holds the repeated cross-validation comparison used in the
-  changelog.
+Seeds are fixed (42, also for the train/test split), every package is pinned in `requirements*.txt`, and the Docker image uses `python:3.13-slim`. The image trains its own model during the build, so it is rebuilt from source every time. Running the same code in the same environment gives the same metrics. Timing numbers (latency, fit time) vary a bit between machines.
 
 ## CI and releases
 
-- `.github/workflows/ci.yml` runs on every push and pull request: ruff lint and format check,
-  unit tests, a training smoke test per model version, and the cross-validation comparison.
-  The trained models, `metrics.json` and the comparison report are uploaded as workflow
-  artifacts. Any failure fails the run.
-- `.github/workflows/release.yml` runs on tags matching `v*`: builds the image, starts the
-  container and runs `scripts/smoke_test.sh` against it, pushes
-  `ghcr.io/<owner>/<repo>:<tag>`, then publishes a GitHub Release with the matching
-  `CHANGELOG.md` section and the metrics of the released image.
+`.github/workflows/ci.yml` runs on every push and pull request: ruff, the tests, a Docker build followed by a smoke test on the running container, a training run for each version, and the cross-validation comparison. The trained models and reports are saved as workflow artifacts. If lint or a test fails, the run fails.
+
+`.github/workflows/release.yml` runs when a tag starting with `v` is pushed. It builds the image, starts the container and runs `scripts/smoke_test.sh` against it, pushes the image to GHCR, and creates a GitHub Release using the matching section of the changelog plus the `metrics.json` taken from the image.
 
 To publish a version:
 
@@ -155,15 +144,27 @@ git tag v0.2
 git push origin v0.2
 ```
 
-After the first push, check on GitHub (Packages, package settings) that the image visibility is
-**Public**, otherwise `docker pull` needs a login.
+## Screenshots
+
+v0.1 running in Docker, then queried with `/health` and `/predict`:
+
+![v0.1 docker build and run](docs/screenshots/v0.1-docker-run.png)
+
+![v0.1 health and predict](docs/screenshots/v0.1-requests.png)
+
+v0.2 running in Docker, with `/health`, `/predict` and `/predict/risk`:
+
+![v0.2 docker build and run](docs/screenshots/v0.2-docker-run.png)
+
+![v0.2 health, predict and risk](docs/screenshots/v0.2-requests.png)
 
 ## Layout
 
 ```
-src/triage/        features, models, risk flag, training and evaluation CLIs, FastAPI app
-tests/             unit tests for training, the risk flag and the API
-scripts/           container smoke test
-metrics/           repeated cross-validation report
-Dockerfile         multi-stage build, model baked in
+src/triage/    features, models, risk flag, train and evaluate scripts, the API
+tests/         tests for training, the risk flag and the API
+scripts/       smoke test used by the release workflow
+metrics/       cross-validation report
+docs/          screenshots of both versions running
+Dockerfile     two stages: train, then a slim image with the model inside
 ```

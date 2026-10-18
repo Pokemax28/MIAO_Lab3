@@ -7,6 +7,16 @@ Because 89 rows is a small test set, v0.2 is also compared with repeated 5-fold 
 `metrics/cv_comparison.json`. The release workflow copies `metrics.json` out of each released
 image, so the held-out numbers can be checked against the GitHub Release.
 
+## Unreleased
+
+Changes on main after the v0.2 tag. The released v0.1 and v0.2 images are not affected.
+
+- Removed all comments and docstrings from the code and config files.
+- The API logs the loaded model version at startup and every score it returns.
+- New test checking that unknown extra keys in the payload are ignored.
+- CI builds the Docker image and runs the smoke test on the container, and no longer cancels a run when a new push arrives.
+- README rewritten with the real image names and screenshots of both versions running.
+
 ## v0.2 (2026-10-13)
 
 Better score and a calibrated high-risk flag.
