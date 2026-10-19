@@ -1,15 +1,20 @@
 # Diabetes clinic triage
 
-A small API that scores how fast a patient's diabetes is likely to progress, so nurses can call the riskiest patients first. This is Lab 3 of MAIO.
+This is Assigment 3 of MAIO Course - Stockholm University, 2026.
+This is a model built in the context of a study program and is not clinically validated nor intended for clinical use.
 
-The data is the scikit-learn diabetes dataset (442 patients, 10 features), standing in for real hospital records. The target is a progression index: higher means worse.
+We create an API that predict how a patient's diabetes is likely to progress. 
+The tool aims to take clinical parameters as imputs and use them to predict a deterioration. In this scenario it would be used by nurses to prioritize follow ups.
 
-There are two releases:
+The training data is from the open source scikit-learn diabetes dataset (442 patients, 10 features).
+The target is outputing a progression index: higher index means higher progression risk and, in v0.2, it will also output an "high risk" flag.
 
-- **v0.1**: `StandardScaler` + `LinearRegression`. The baseline.
-- **v0.2**: an average of a Ridge model and a gradient boosting model, plus a "high risk" flag with a calibrated threshold.
+The two releases are:
 
-The metrics for both are in [CHANGELOG.md](CHANGELOG.md). The improvement is real but small, the changelog explains how small.
+- **v0.1**: `StandardScaler` + `LinearRegression`. The baseline prediction tool based on simple regression.
+- **v0.2**: An ensenle model, that use the average of output from a Ridge model and a gradient boosting model, and is also able to output an "high risk" flag with a calibrated threshold.
+
+The metrics for both are in [CHANGELOG.md](CHANGELOG.md). The improvement is small but evident, the changelog explains how small.
 
 ## Run it with Docker
 

@@ -23,12 +23,12 @@ Better score and a calibrated high-risk flag.
 
 ### What changed
 
-- Model: average of two models, a `RidgeCV` pipeline (standardized features, penalty chosen by
+- Model: ensemble model that thakes the average output of two models, a `RidgeCV` pipeline (standardized features, penalty chosen by
   built-in leave-one-out validation) and a small `GradientBoostingRegressor` (100 shallow trees,
-  learning rate 0.05, subsampling). `StandardScaler` + `LinearRegression` is gone.
+  learning rate 0.05, subsampling). The v0.1 model `StandardScaler` + `LinearRegression` is removed.
 - New endpoint `POST /predict/risk` returns `prediction`, `high_risk` and the `threshold` used.
   `POST /predict` and `GET /health` keep the exact same format as v0.1.
-- High-risk label: true progression in the top 25 percent of the training targets. The flag
+- High-risk label: true progression in the top 25 percent of the training targets (the "high risk" treashold in this case is taken arbitrarily). The flag
   threshold is calibrated on out-of-fold predictions of the training set to maximize F1, the
   test set is only used to report results. Training saves it in `metrics.json`.
 - New `triage.evaluate` command and a CI job that runs the cross-validation comparison and
@@ -51,8 +51,8 @@ Repeated 5-fold cross-validation (25 folds, mean over folds):
 | Metric                              | v0.1          | v0.2          |
 | ----------------------------------- | ------------- | ------------- |
 | RMSE                                | 54.93 (sd 2.63) | 54.70 (sd 2.34) |
-| Folds where v0.2 has the lower RMSE | | 14 of 25 |
-| Reference: Ridge alone / GBR alone  | 55.01 / 56.02 | |
+| Folds where v0.2 has the lower RMSE |               | 14 of 25 |
+| Reference: Ridge alone / GBR alone  |               | 55.01 / 56.02 |
 
 High-risk flag of the v0.2 model, threshold at the label cutoff versus calibrated threshold:
 
@@ -65,9 +65,9 @@ High-risk flag of the v0.2 model, threshold at the label cutoff versus calibrate
 
 ### Why this is an improvement
 
-- Lower error: RMSE drops by 1.68 on the held-out split and by 0.23 on average over 25 folds,
+- Lower error: RMSE drops by 1.68 on the held-out split and by 0.23 on average during cross validation,
   with less spread between folds (sd 2.34 versus 2.63). The average of the two models beats each
-  model alone (Ridge 55.01, GBR 56.02), which is the reason for blending them.
+  model alone (Ridge 55.01, GBR 56.02), which is the reason for combining them.
 - Fewer missed patients: with the threshold at the label cutoff, only half of the high-risk
   patients are flagged, because predictions are shrunk towards the mean. The calibrated
   threshold raises recall from 0.50 to 0.68 in cross-validation (0.33 to 0.76 on the held-out
